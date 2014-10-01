@@ -1,0 +1,28 @@
+This document explains how to flash a controlCARD.
+
+Steps:
+1) Power board, connect USB JTAG, launch CCSv4
+-----
+2) Delete all other projects (right click, delete)
+---
+3)
+View -> Target Configurations -> User Defined 
+Verify the proper target configuration is set as default, or create a new target configuration for your device
+---
+Skip this section, if your target configuration is already properly set up and set as the default:
+Target -> New Target Configuration
+For your filename, set "xds100v1-[YOUR_DEVICE_PART_#_HERE].ccxml"
+To create a new target configuration, the typical Connection type is "Texas Instruments XDS100v1 USB Emulator"
+Then, in the Device section, select the device corresponding to device found on the controlCARD you are flashing
+Save Configuration
+---
+Verify no targets are under projects folder
+---
+4) Launch debug (Green Bug)
+5) Target -> Connect Target
+6) Target -> Load Program... -> [SELECT YOUR .out FILE]
+------
+7) Terminate all (The overlapped red squares in the debug box)
+8) controlCARD is now flashed
+-----
+9) Power cycle your board before connecting the GUI

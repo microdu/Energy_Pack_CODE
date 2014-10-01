@@ -1,0 +1,12 @@
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\bin\Debug\GUI_Template.exe
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\bin\Debug\GUI_Template.pdb
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\obj\Debug\ResolveAssemblyReference.cache
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\obj\Debug\GUI_Template.GUI_Template.resources
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\obj\Debug\GUI_Template.Properties.Resources.resources
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\obj\Debug\GUI_Templateb.csproj.GenerateResource.Cache
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\obj\Debug\GUI_Template.exe
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\obj\Debug\GUI_Template.pdb
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\GUI_Template\GUI_Template\bin\Debug\GUI_Template.exe.config
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\TwoChannel\GUI_Template\bin\Debug\GUI_Template.exe.config
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\TwoChannel\GUI_Template\obj\Debug\GUI_Template.exe
+C:\Documents and Settings\a0271704\My Documents\Visual Studio 2005\Projects\TwoChannel\GUI_Template\obj\Debug\GUI_Template.pdb

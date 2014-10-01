@@ -1,0 +1,16 @@
+power board, connect USB JTAG, launch CCSv4
+-----
+delete all other projects (right click, delete)
+---
+view -> targets -> user defined 
+make sure xds100-f28035[default]
+make sure no targets under projects folder
+---
+launch debug (green bug)
+connect target
+target -> load program 2xPM_Motors.out
+------
+terminate all
+controlCARD is now flashed
+-----
+power cycle before connecting GUI

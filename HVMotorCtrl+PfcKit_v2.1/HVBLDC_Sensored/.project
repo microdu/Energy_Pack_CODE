@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>HVBLDC_Sensored</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.cdt.core.cnature</nature>
+		<nature>org.eclipse.cdt.core.ccnature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
+		<nature>com.ti.ccstudio.managedbuild.core.ccsNature</nature>
+	</natures>
+	<linkedResources>
+		<link>
+			<name>DSP2803x_CodeStartBranch.asm</name>
+			<type>1</type>
+			<locationURI>CONTROLSUITE_HVMOTOR_ROOT/device_support/f2803x/v121/DSP2803x_common/source/DSP2803x_CodeStartBranch.asm</locationURI>
+		</link>
+		<link>
+			<name>DSP2803x_Headers_nonBIOS.cmd</name>
+			<type>1</type>
+			<locationURI>CONTROLSUITE_HVMOTOR_ROOT/device_support/f2803x/v121/DSP2803x_headers/cmd/DSP2803x_Headers_nonBIOS.cmd</locationURI>
+		</link>
+		<link>
+			<name>IQmath.lib</name>
+			<type>1</type>
+			<locationURI>CONTROLSUITE_HVMOTOR_ROOT/libs/math/IQmath/v15c/lib/IQmath.lib</locationURI>
+		</link>
+	</linkedResources>
+</projectDescription>

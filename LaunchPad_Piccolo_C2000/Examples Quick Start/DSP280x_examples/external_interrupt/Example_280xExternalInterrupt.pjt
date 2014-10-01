@@ -1,0 +1,43 @@
+; Code Composer Project File, Version 2.0 (do not modify or remove this line)
+
+[Project Settings]
+ProjectName="DSP280x"
+ProjectDir="C:\tidcs\c28\DSP280x\v170\DSP280x_examples\external_interrupt\"
+ProjectType=Executable
+CPUFamily=TMS320C28XX
+Tool="Compiler"
+
+Tool="Linker"
+Config="Debug"
+Config="Release"
+
+[Source Files]
+Source="..\..\DSP280x_common\source\DSP280x_CodeStartBranch.asm"
+Source="..\..\DSP280x_common\source\DSP280x_DefaultIsr.c"
+Source="..\..\DSP280x_common\source\DSP280x_PieCtrl.c"
+Source="..\..\DSP280x_common\source\DSP280x_PieVect.c"
+Source="..\..\DSP280x_common\source\DSP280x_SysCtrl.c"
+Source="..\..\DSP280x_common\source\DSP280x_usDelay.asm"
+Source="..\..\DSP280x_headers\source\DSP280x_GlobalVariableDefs.c"
+Source="Example_280xExternalInterrupt.c"
+Source="..\..\DSP280x_common\cmd\2808_eZdsp_RAM_lnk.cmd"
+Source="..\..\DSP280x_headers\cmd\DSP280x_Headers_nonBIOS.cmd"
+
+["Compiler" Settings: "Debug"]
+Options=-g -q -pdr -as -fr"C:\tidcs\c28\DSP280x\v170\DSP280x_examples\external_interrupt\Debug" -fs"C:\tidcs\c28\DSP280x\v170\DSP280x_examples\external_interrupt\Debug" -i"..\..\DSP280x_headers\include" -i"..\..\DSP280x_common\include" -d"_DEBUG" -d"LARGE_MODEL" -ml -mt -v28
+
+["Compiler" Settings: "Release"]
+Options=-q -o3 -fr"C:\tidcs\c28\DSP280x\v170\DSP280x\DSP280x_examples\external_interrupt\Release" -d"LARGE_MODEL" -ml -v28
+
+["DspBiosBuilder" Settings: "Debug"]
+Options=-v28
+
+["DspBiosBuilder" Settings: "Release"]
+Options=-v28
+
+["Linker" Settings: "Debug"]
+Options=-q -c -ecode_start -m".\Debug\Example_280xExternalInterrupt.map" -o".\Debug\Example_280xExternalInterrupt.out" -stack0x200 -w -x -l"rts2800_ml.lib"
+
+["Linker" Settings: "Release"]
+Options=-q -c -o".\Release\Example_281xExternalInterrupt.out" -x
+

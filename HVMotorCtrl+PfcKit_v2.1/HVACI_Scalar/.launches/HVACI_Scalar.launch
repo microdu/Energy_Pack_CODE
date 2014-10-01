@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launchConfiguration type="com.ti.ccstudio.debug.core.CCELaunchType">
+<stringAttribute key="org.eclipse.debug.core.source_locator_memento" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;sourceLookupDirector&gt;&#13;&#10;&lt;sourceContainers duplicates=&quot;false&quot;&gt;&#13;&#10;&lt;container memento=&quot;&amp;lt;?xml version=&amp;quot;1.0&amp;quot; encoding=&amp;quot;UTF-8&amp;quot;?&amp;gt;&amp;#13;&amp;#10;&amp;lt;default/&amp;gt;&amp;#13;&amp;#10;&quot; typeId=&quot;org.eclipse.debug.core.containerType.default&quot;/&gt;&#13;&#10;&lt;/sourceContainers&gt;&#13;&#10;&lt;/sourceLookupDirector&gt;&#13;&#10;"/>
+<booleanAttribute key="com.ti.ccstudio.debug.core.MRU_PROGRAM_S_ONLY" value="false"/>
+<booleanAttribute key="org.eclipse.debug.ui.ATTR_LAUNCH_IN_BACKGROUND" value="false"/>
+<stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_ID" value="com.ti.ccstudio.debug.core.CCEDebugger"/>
+<stringAttribute key="CCEDebugOptions.CPU_RESOLVE_OPTION" value="exact"/>
+<stringAttribute key="org.eclipse.debug.ui.DISPLAY_NAME" value="HVACI_Scalar [F2803x_RAM] - Texas Instruments XDS100v1 USB Emulator_0/C28xx"/>
+<stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_REGISTER_GROUPS" value=""/>
+<mapAttribute key="com.ti.ccstudio.debug.core.VARIABLE_STATE"/>
+<stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_START_MODE" value="run"/>
+<stringAttribute key="com.ti.ccstudio.debug.core.DISPLAY_NAME_FORMAT" value="HVACI_Scalar [F2803x_RAM] - {0}"/>
+<stringAttribute key="CCEDebugOptions.DEBUG_PROPERTIES.Texas Instruments XDS100v1 USB Emulator_0/C28xx" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot; ?&gt;&#10;&lt;PropertyValues&gt;&#10;&#10;  &lt;property id=&quot;ConnectOnStartup&quot;&gt;&#10;    &lt;curValue&gt;1&lt;/curValue&gt;&#10;  &lt;/property&gt;&#10;&#10;&lt;/PropertyValues&gt;&#10;"/>
+<stringAttribute key="CCEDebugOptions.TARGET_CONFIGURATION_OPTION" value="full"/>
+<stringAttribute key="org.eclipse.cdt.launch.MEMORY_BLOCKS" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;memoryBlockExpressionList/&gt;&#13;&#10;"/>
+<stringAttribute key="com.ti.ccstudio.debug.core.MRU_PROGRAM_NAME" value="C:\TI\controlSUITE\development_kits\HVMotorCtrl+PfcKit_v2.0\HVACI_Scalar\F2803x_RAM\HVACI_Scalar.out"/>
+<stringAttribute key="CCEDebugOptions.CPU_NAME" value="Texas Instruments XDS100v1 USB Emulator_0/C28xx"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="HVACI_Scalar"/>
+<stringAttribute key="com.ti.ccstudio.debug.core.MRU_MODULES" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;modules&gt;&#13;&#10;&lt;module name=&quot;&quot; time=&quot;Wed Dec 31 18:00:00 CST 1969&quot; time_long=&quot;0&quot;/&gt;&#13;&#10;&lt;module name=&quot;C:\TI\controlSUITE\development_kits\HVMotorCtrl+PfcKit_v1.4\HVACI_Scalar\F2803x_RAM\HVACI_Scalar.out&quot; time=&quot;Tue Oct 26 15:48:10 CDT 2010&quot; time_long=&quot;1288126090951&quot;/&gt;&#13;&#10;&lt;module name=&quot;C:\TI\controlSUITE\development_kits\HVMotorCtrl+PfcKit_v1.5\HVACI_Scalar\F2803x_RAM\HVACI_Scalar.out&quot; time=&quot;Fri Nov 12 16:03:58 CST 2010&quot; time_long=&quot;1289599438757&quot;/&gt;&#13;&#10;&lt;module name=&quot;C:\TI\controlSUITE\development_kits\HVMotorCtrl+PfcKit_v2.0\HVACI_Scalar\F2803x_FLASH\HVACI_Sensored.out&quot; time=&quot;Wed Feb 01 14:59:57 CST 2012&quot; time_long=&quot;1328129997751&quot;/&gt;&#13;&#10;&lt;module name=&quot;C:\TI\controlSUITE\development_kits\HVMotorCtrl+PfcKit_v2.0\HVACI_Scalar\F2803x_RAM\HVACI_Scalar.out&quot; time=&quot;Mon Apr 30 12:30:57 CDT 2012&quot; time_long=&quot;1335807057870&quot;/&gt;&#13;&#10;&lt;/modules&gt;&#13;&#10;"/>
+<stringAttribute key="org.eclipse.cdt.launch.GLOBAL_VARIABLES" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;globalVariableList/&gt;&#13;&#10;"/>
+<stringAttribute key="CCEDebugOptions.CPU_ISA" value="TMS320C28xx"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="F2803x_RAM/HVACI_Scalar.out"/>
+<stringAttribute key="com.ti.ccstudio.debug.core.BUILD_CONFIGURATION" value="F2803x_RAM"/>
+<stringAttribute key="CCEDebugOptions.DEBUG_PROPERTIES.Texas Instruments XDS100v1 USB Emulator_0/CLA_0" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot; ?&gt;&#10;&lt;PropertyValues&gt;&#10;&#10;  &lt;property id=&quot;ConnectOnStartup&quot;&gt;&#10;    &lt;curValue&gt;1&lt;/curValue&gt;&#10;  &lt;/property&gt;&#10;&#10;&lt;/PropertyValues&gt;&#10;"/>
+<stringAttribute key="CCEDebugOptions.TARGET_CONFIGURATION_FILE" value="C:\TI\controlSUITE\development_kits\HVMotorCtrl+PfcKit_v2.0\HVACI_Scalar\NewTargetConfiguration.ccxml"/>
+<stringAttribute key="org.eclipse.debug.core.source_locator_id" value="com.ti.ccstudio.debug.core.sourceLocator"/>
+</launchConfiguration>

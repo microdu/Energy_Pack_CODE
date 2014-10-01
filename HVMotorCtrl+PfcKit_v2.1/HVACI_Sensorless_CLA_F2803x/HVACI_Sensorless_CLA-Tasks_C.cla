@@ -1,0 +1,706 @@
+// BA, MB , C2000 Systems and Applications
+#include "HVACI_Sensorless_CLA-Shared_C.h"
+
+#include "DSP2803x_EPwm.h"
+#include "DSP2803x_Adc.h"
+
+// Motor ISR period
+#define T		0.0001 
+
+// Define the electrical motor parametes (1/4 hp Marathon Motor)
+#define RS 		11.05		        // Stator resistance (ohm) 
+#define RR   	6.11		        // Rotor resistance (ohm) 
+#define LS   	0.316423    	  	// Stator inductance (H) 
+#define LR   	0.316423	  		// Rotor inductance (H) 	
+#define LM   	0.293939	   		// Magnatizing inductance (H)
+#define POLES  	4					// Number of poles
+
+// Define the base quantites for PU system conversion
+#define BASE_VOLTAGE    236     // Base peak phase voltage (volt)
+#define BASE_CURRENT    10          // Base peak phase current (amp)
+#define BASE_FREQ      	120         // Base electrical frequency (Hz) 
+									// Note that 0.5 pu (1800 rpm) is max for Marathon motor 
+									// Above 1800 rpm, field weakening is needed.
+#define SpeedLoopPrescaler 10									
+
+//Global Data used in Motor control software
+
+// Variables used for computation on the CLA are in CLA writable space i.e. the CLA data RAM 
+#pragma DATA_SECTION(rg1,"ClaDataRam0");
+C28x_volatile RAMP_GEN_CLA rg1;  
+
+#pragma DATA_SECTION(rc1,"ClaDataRam0");
+C28x_volatile RAMP_CNTL_CLA rc1; 
+
+#pragma DATA_SECTION(clarke1,"ClaDataRam0");
+C28x_volatile CLARKE_CLA clarke1;
+
+#pragma DATA_SECTION(park1,"ClaDataRam0");
+C28x_volatile PARK_CLA park1;
+
+#pragma DATA_SECTION(ipark1,"ClaDataRam0");
+C28x_volatile iPARK_CLA ipark1;
+
+#pragma DATA_SECTION(pwm1,"ClaDataRam0");
+C28x_volatile PWMDRV_3phInv_CLA pwm1;
+
+#pragma DATA_SECTION(pi_id,"ClaDataRam0");
+#pragma DATA_SECTION(pi_iq,"ClaDataRam0");
+#pragma DATA_SECTION(pi_spd,"ClaDataRam0");
+C28x_volatile PI_CLA	pi_id,pi_iq,pi_spd;
+				  
+#pragma DATA_SECTION(svgen1,"ClaDataRam0");
+C28x_volatile SVGEN_CLA svgen1;
+
+#pragma DATA_SECTION(fe1,"ClaDataRam0");
+#pragma DATA_SECTION(fe1_const,"ClaDataRam0");
+C28x_volatile ACI_FE_CLA fe1;
+C28x_volatile ACI_FE_CONST_CLA fe1_const;
+
+#pragma DATA_SECTION(se1,"ClaDataRam0");
+#pragma DATA_SECTION(se1_const,"ClaDataRam0");
+C28x_volatile ACI_SE_CLA se1;
+C28x_volatile ACI_SE_CONST_CLA se1_const;
+
+#pragma DATA_SECTION(volt1,"ClaDataRam0");
+C28x_volatile VOLT_CALC_CLA volt1;
+
+#pragma DATA_SECTION(SpeedLoopCount,"ClaDataRam0");
+volatile int SpeedLoopCount;
+
+#pragma DATA_SECTION(IsrTicker,"ClaDataRam0");
+volatile float IsrTicker;
+
+#pragma DATA_SECTION(Cycles,"ClaDataRam0");
+volatile float Cycles;
+
+#pragma DATA_SECTION(Cycles_Avg,"ClaDataRam0");
+volatile float Cycles_Avg;
+
+#pragma DATA_SECTION(Cycles_Max,"ClaDataRam0");
+volatile float Cycles_Max;
+
+// The C28x instructs the CLA to change the speed or close speed loop
+// These variables are declared in the message RAM 
+
+#pragma DATA_SECTION(EnableFlag,"CpuToCla1MsgRAM");
+volatile float EnableFlag;
+
+#pragma DATA_SECTION(SpeedRef,"CpuToCla1MsgRAM");
+volatile float SpeedRef;
+
+#pragma DATA_SECTION(lsw,"CpuToCla1MsgRAM");
+volatile int lsw;
+
+#pragma DATA_SECTION(IdRef,"CpuToCla1MsgRAM");
+volatile float IdRef;
+
+#pragma DATA_SECTION(IqRef,"CpuToCla1MsgRAM");
+volatile float IqRef;
+
+#pragma DATA_SECTION(VdTesting,"CpuToCla1MsgRAM");
+volatile float VdTesting;
+
+#pragma DATA_SECTION(VqTesting,"CpuToCla1MsgRAM");
+volatile float VqTesting;
+
+// Whether MDEBUGSTOP needs to be compiled or not 
+#define CLA_DEBUG 0
+
+//Task 1
+// Description: 
+interrupt void Cla1Task1 ( void )
+{
+	#if (CLA_DEBUG==1)
+	__mdebugstop();
+	#endif
+	
+	if(EnableFlag!=0)
+	{
+	IsrTicker++;
+	// =============================== LEVEL 1 ======================================
+	//	  Checks target independent modules, duty cycle waveforms and PWM update
+	//	  Keep the motors disconnected at this level
+	// ==============================================================================
+	#if (DMC_CLA_BUILDLEVEL==LEVEL1)	 
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RMP module and call the ramp control macro
+	// ------------------------------------------------------------------------------
+		rc1.TargetValue = SpeedRef;
+		RAMP_CNTL_CLA_MACRO(rc1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RAMP GEN module and call the ramp generator macro
+	// ------------------------------------------------------------------------------
+		rg1.Freq=rc1.SetpointValue;
+		RAMP_GEN_CLA_MACRO(rg1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the INV_PARK module and call the inverse park trans. macro
+	// ------------------------------------------------------------------------------
+		ipark1.d=VdTesting;
+		ipark1.q=VqTesting;
+		ipark1.cos=CLAcosPU(rg1.Out);
+		ipark1.sine=CLAsinPU(rg1.Out);
+		iPARK_CLA_MACRO(ipark1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the SVGEN module and call the space-vector gen. macro
+	// ------------------------------------------------------------------------------
+		svgen1.Ualpha=ipark1.alpha;
+		svgen1.Ubeta=ipark1.beta;
+		SVGEN_CLA_MACRO(svgen1)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PWM_DRV module and call the PWM signal generation macro
+	// ------------------------------------------------------------------------------
+		pwm1.MfuncC1=svgen1.Ta;
+		pwm1.MfuncC2=svgen1.Tb;
+		pwm1.MfuncC3=svgen1.Tc;
+		PWMDRV_3phInv_CLA_MACRO(pwm1)
+		
+	// ------------------------------------------------------------------------------
+	//    Connect inputs of the PWMDAC module 
+	// ------------------------------------------------------------------------------	
+		PWMDRV_DAC_CLA_MACRO(park1.d,park1.q,park1.theta,clarke1.beta,500)
+	
+	#endif	
+	
+	// =============================== LEVEL 2 ======================================
+	//	  Level 2 verifies the analog-to-digital conversion, offset compensation, 
+	//    clarke/park transformations (CLARKE/PARK), phase voltage calculations 
+	// ==============================================================================
+	
+	#if (DMC_CLA_BUILDLEVEL==LEVEL2)	 
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RMP module and call the ramp control macro
+	// ------------------------------------------------------------------------------
+		rc1.TargetValue = SpeedRef;
+		RAMP_CNTL_CLA_MACRO(rc1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RAMP GEN module and call the ramp generator macro
+	// ------------------------------------------------------------------------------
+		rg1.Freq=rc1.SetpointValue;
+		RAMP_GEN_CLA_MACRO(rg1)
+	
+	// ------------------------------------------------------------------------------
+	//  Measure phase currents, subtract the offset and normalize from (-0.5,+0.5) to (-1,+1). 
+	//	Connect inputs of the CLARKE module and call the clarke transformation macro
+	// ------------------------------------------------------------------------------
+		clarke1.As= ((AdcResult.ADCRESULT1*0.000244140625)-0.501)*2;// Phase A curr.
+		clarke1.Bs= ((AdcResult.ADCRESULT2*0.000244140625)-0.504)*2;// Phase B curr.	
+	
+		CLARKE_CLA_MACRO(clarke1)
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PARK module and call the park trans. macro
+	// ------------------------------------------------------------------------------
+		park1.theta = rg1.Out;
+		park1.alpha=clarke1.alpha;
+		park1.beta=clarke1.beta;
+		
+		PARK_CLA_MACRO(park1)
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the INV_PARK module and call the inverse park trans. macro
+	// ------------------------------------------------------------------------------
+		ipark1.d=VdTesting;
+		ipark1.q=VqTesting;
+		ipark1.cos=CLAcosPU(rg1.Out);
+		ipark1.sine=CLAsinPU(rg1.Out);
+		
+		iPARK_CLA_MACRO(ipark1)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the VOLT_CALC module and call the phase voltage calc. macro
+	// ------------------------------------------------------------------------------
+		volt1.DcBusVolt = ((float)AdcResult.ADCRESULT3)*0.000244140625;	// DC Bus voltage meas.
+	    volt1.MfuncV1 = svgen1.Ta;
+	    volt1.MfuncV2 = svgen1.Tb;
+	    volt1.MfuncV3 = svgen1.Tc;
+	    VOLT_CALC_CLA_MACRO(volt1) 
+	    	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the SVGEN module and call the space-vector gen. macro
+	// ------------------------------------------------------------------------------
+		svgen1.Ualpha=ipark1.alpha;
+		svgen1.Ubeta=ipark1.beta;
+		SVGEN_CLA_MACRO(svgen1)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PWM_DRV module and call the PWM signal generation macro
+	// ------------------------------------------------------------------------------	
+		pwm1.MfuncC1=svgen1.Ta;
+		pwm1.MfuncC2=svgen1.Tb;
+		pwm1.MfuncC3=svgen1.Tc;
+		
+		PWMDRV_3phInv_CLA_MACRO(pwm1)
+	
+	// ------------------------------------------------------------------------------
+	//    Call PWMDAC module 
+	// ------------------------------------------------------------------------------		
+		PWMDRV_DAC_CLA_MACRO(park1.d,park1.q,park1.theta,clarke1.beta,500)
+	
+	
+	#endif	
+	
+	// =============================== LEVEL 3 ======================================
+	//	Level 3 verifies the dq-axis current regulation performed by PID and speed 
+	//	measurement modules  
+	// ============================================================================== 
+	#if (DMC_CLA_BUILDLEVEL==LEVEL3)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RMP module and call the ramp control macro
+	// ------------------------------------------------------------------------------
+		rc1.TargetValue = SpeedRef;
+		RAMP_CNTL_CLA_MACRO(rc1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RAMP GEN module and call the ramp generator macro
+	// ------------------------------------------------------------------------------
+		rg1.Freq=rc1.SetpointValue;
+		RAMP_GEN_CLA_MACRO(rg1)
+	
+	// ------------------------------------------------------------------------------
+	//  Measure phase currents, subtract the offset and normalize from (-0.5,+0.5) to (-1,+1). 
+	//	Connect inputs of the CLARKE module and call the clarke transformation macro
+	// ------------------------------------------------------------------------------
+		clarke1.As= ((AdcResult.ADCRESULT1*0.000244140625)-0.50)*2;// Phase A curr.
+		clarke1.Bs= ((AdcResult.ADCRESULT2*0.000244140625)-0.50)*2;// Phase B curr.	
+		
+		CLARKE_CLA_MACRO(clarke1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PARK module and call the park trans. macro
+	// ------------------------------------------------------------------------------ 
+		park1.theta = rg1.Out;
+		park1.alpha=clarke1.alpha;
+		park1.beta=clarke1.beta;
+		park1.sine = CLAsinPU(park1.theta);
+		park1.cos =  CLAcosPU(park1.theta);	
+		PARK_CLA_MACRO(park1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PID_Grando module and call the PID IQ controller macro
+	// ------------------------------------------------------------------------------ 
+		pi_iq.Ref=IqRef;
+		pi_iq.Fbk=park1.q;	
+		PI_CLA_MACRO(pi_iq)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PID_Grando module and call the PID ID controller macro
+	// ------------------------------------------------------------------------------
+		pi_id.Ref=IdRef;
+		pi_id.Fbk=park1.d; 
+		PI_CLA_MACRO(pi_id);
+		
+	// ------------------------------------------------------------------------------
+	//	Connect inputs of the INV_PARK module and call the inverse park trans. macro
+	// ------------------------------------------------------------------------------
+		ipark1.d=pi_id.Out;
+		ipark1.q=pi_iq.Out;
+		ipark1.cos=park1.cos;
+		ipark1.sine=park1.sine;
+		iPARK_CLA_MACRO(ipark1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the VOLT_CALC module and call the phase voltage calc. macro
+	// ------------------------------------------------------------------------------
+		volt1.DcBusVolt = ((float)AdcResult.ADCRESULT3)*0.000244140625;	// DC Bus voltage meas.
+	    volt1.MfuncV1 = svgen1.Ta;
+	    volt1.MfuncV2 = svgen1.Tb;
+	    volt1.MfuncV3 = svgen1.Tc;
+	    VOLT_CALC_CLA_MACRO(volt1) 	
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the SVGEN module and call the space-vector gen. macro
+	// ------------------------------------------------------------------------------
+		svgen1.Ualpha=ipark1.alpha;
+		svgen1.Ubeta=ipark1.beta;
+		SVGEN_CLA_MACRO(svgen1)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PWM_DRV module and call the PWM signal generation macro
+	// ------------------------------------------------------------------------------
+		pwm1.MfuncC1=svgen1.Ta;
+		pwm1.MfuncC2=svgen1.Tb;
+		pwm1.MfuncC3=svgen1.Tc;
+		PWMDRV_3phInv_CLA_MACRO(pwm1)
+	
+	// ------------------------------------------------------------------------------
+	//    Connect inputs of the PWMDAC module 
+	// ------------------------------------------------------------------------------	
+		PWMDRV_DAC_CLA_MACRO(clarke1.As,rg1.Out,park1.q,ipark1.cos,500)
+		
+	#endif
+	
+	// =============================== LEVEL 4 ======================================
+	//	  Level 4 verifies the flux estimation (ACI_FE) and open-loop 
+	//	  speed estimation (ACI_SE).
+	// ============================================================================== 
+	
+	#if (DMC_CLA_BUILDLEVEL==LEVEL4)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RMP module and call the ramp control macro
+	// ------------------------------------------------------------------------------
+		rc1.TargetValue = SpeedRef;
+		RAMP_CNTL_CLA_MACRO(rc1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RAMP GEN module and call the ramp generator macro
+	// ------------------------------------------------------------------------------
+		rg1.Freq=rc1.SetpointValue;
+		RAMP_GEN_CLA_MACRO(rg1)
+	
+	// ------------------------------------------------------------------------------
+	//  Measure phase currents, subtract the offset and normalize from (-0.5,+0.5) to (-1,+1). 
+	//	Connect inputs of the CLARKE module and call the clarke transformation macro
+	// ------------------------------------------------------------------------------
+		clarke1.As= ((AdcResult.ADCRESULT1*0.000244140625)-0.50)*2;// Phase A curr.
+		clarke1.Bs= ((AdcResult.ADCRESULT2*0.000244140625)-0.50)*2;// Phase B curr.
+		
+		CLARKE_CLA_MACRO(clarke1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PARK module and call the park trans. macro
+	// ------------------------------------------------------------------------------ 
+		park1.theta = rg1.Out;
+		park1.alpha=clarke1.alpha;
+		park1.beta=clarke1.beta;
+		park1.sine = CLAsinPU(park1.theta);
+		park1.cos =  CLAcosPU(park1.theta);	
+		PARK_CLA_MACRO(park1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PID_Grando module and call the PID IQ controller macro
+	// ------------------------------------------------------------------------------ 
+		pi_iq.Ref=IqRef;
+		pi_iq.Fbk=park1.q;	
+		PI_CLA_MACRO(pi_iq)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PID_Grando module and call the PID ID controller macro
+	// ------------------------------------------------------------------------------
+		pi_id.Ref=IdRef;
+		pi_id.Fbk=park1.d; 
+		PI_CLA_MACRO(pi_id);
+		
+	// ------------------------------------------------------------------------------
+	//	Connect inputs of the INV_PARK module and call the inverse park trans. macro
+	// ------------------------------------------------------------------------------
+		ipark1.d=pi_id.Out;
+		ipark1.q=pi_iq.Out;
+		ipark1.cos=park1.cos;
+		ipark1.sine=park1.sine;
+		iPARK_CLA_MACRO(ipark1)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the VOLT_CALC module and call the phase voltage calc. macro
+	// ------------------------------------------------------------------------------
+		volt1.DcBusVolt = ((float)AdcResult.ADCRESULT3)*0.000244140625;	// DC Bus voltage meas.
+	    volt1.MfuncV1 = svgen1.Ta;
+	    volt1.MfuncV2 = svgen1.Tb;
+	    volt1.MfuncV3 = svgen1.Tc;
+	    VOLT_CALC_CLA_MACRO(volt1) 
+	
+	// ------------------------------------------------------------------------------
+	//    Connect inputs of the ACI module and call the flux estimation macro
+	// ------------------------------------------------------------------------------
+	 	fe1.UDsS = volt1.Valpha;
+		fe1.UQsS = volt1.Vbeta;
+	 	fe1.IDsS = clarke1.alpha;
+		fe1.IQsS = clarke1.beta;
+		ACI_FE_CLA_MACRO(fe1)
+	
+	// ------------------------------------------------------------------------------
+	//    Connect inputs of the ACI module and call the speed estimation macro
+	// ------------------------------------------------------------------------------
+	 	se1.IDsS = clarke1.alpha;
+		se1.IQsS = clarke1.beta;
+	 	se1.PsiDrS = fe1.PsiDrS;
+		se1.PsiQrS = fe1.PsiQrS;
+		se1.ThetaFlux = fe1.ThetaFlux; 
+		ACI_SE_CLA_MACRO(se1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the SVGEN module and call the space-vector gen. macro
+	// ------------------------------------------------------------------------------
+		svgen1.Ualpha=ipark1.alpha;
+		svgen1.Ubeta=ipark1.beta;
+		SVGEN_CLA_MACRO(svgen1)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PWM_DRV module and call the PWM signal generation macro
+	// ------------------------------------------------------------------------------
+		pwm1.MfuncC1=svgen1.Ta;
+		pwm1.MfuncC2=svgen1.Tb;
+		pwm1.MfuncC3=svgen1.Tc;
+		PWMDRV_3phInv_CLA_MACRO(pwm1)
+	
+	// ------------------------------------------------------------------------------
+	//    Connect inputs of the PWMDAC module 
+	// ------------------------------------------------------------------------------	
+		PWMDRV_DAC_CLA_MACRO(clarke1.As,rg1.Out,park1.q,ipark1.cos,500)
+		
+	#endif
+	
+	
+	// =============================== LEVEL 5 ======================================
+	//	  Level 5 verifies the speed regulator performed by PI module. 
+	//	  The system speed loop is closed by using the estimated speed as a feedback.
+	// ============================================================================== 
+	//  lsw=0, close the current loop
+	//	lsw=1, close the speed loop
+	
+	#if (DMC_CLA_BUILDLEVEL==LEVEL5)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RMP module and call the ramp control macro
+	// ------------------------------------------------------------------------------
+		rc1.TargetValue = SpeedRef;
+		RAMP_CNTL_CLA_MACRO(rc1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the RAMP GEN module and call the ramp generator macro
+	// ------------------------------------------------------------------------------
+		rg1.Freq=rc1.SetpointValue;
+		RAMP_GEN_CLA_MACRO(rg1)
+	
+	// ------------------------------------------------------------------------------
+	//  Measure phase currents, subtract the offset and normalize from (-0.5,+0.5) to (-1,+1). 
+	//	Connect inputs of the CLARKE module and call the clarke transformation macro
+	// ------------------------------------------------------------------------------
+		clarke1.As= ((AdcResult.ADCRESULT1*0.000244140625)-0.501)*2;// Phase A curr.
+		clarke1.Bs= ((AdcResult.ADCRESULT2*0.000244140625)-0.504)*2;// Phase B curr.	
+		
+		CLARKE_CLA_MACRO(clarke1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PARK module and call the park trans. macro
+	// ------------------------------------------------------------------------------ 
+		if(lsw==0)	park1.theta = rg1.Out;
+		else park1.theta = fe1.ThetaFlux;
+		park1.alpha=clarke1.alpha;
+		park1.beta=clarke1.beta;
+		park1.sine = CLAsinPU(park1.theta);
+		park1.cos =  CLAcosPU(park1.theta);	
+		
+		PARK_CLA_MACRO(park1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PID_Grando module and call the PID IQ controller macro
+	// ------------------------------------------------------------------------------ 
+		if (SpeedLoopCount==10)
+		{
+		pi_spd.Ref= rc1.SetpointValue ;
+		pi_spd.Fbk= se1.WrHat;
+		SpeedLoopCount=1;	
+		PI_CLA_MACRO(pi_spd)
+		}
+		else 
+		SpeedLoopCount++;  
+		
+		if(lsw==0) { pi_spd.ui=0; pi_spd.i1=0;}
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PID_Grando module and call the PID IQ controller macro
+	// ------------------------------------------------------------------------------ 
+		if(lsw==0) pi_iq.Ref = IqRef;
+		else pi_iq.Ref = pi_spd.Out;
+		pi_iq.Fbk=park1.q;
+		PI_CLA_MACRO(pi_iq)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PID_Grando module and call the PID ID controller macro
+	// ------------------------------------------------------------------------------
+		pi_id.Ref=IdRef;
+		pi_id.Fbk=park1.d; 
+		PI_CLA_MACRO(pi_id);	
+	
+	// ------------------------------------------------------------------------------
+	//	Connect inputs of the INV_PARK module and call the inverse park trans. macro
+	// ------------------------------------------------------------------------------
+		ipark1.d=pi_id.Out;
+		ipark1.q=pi_iq.Out;
+		ipark1.cos=park1.cos;
+		ipark1.sine=park1.sine;	
+		iPARK_CLA_MACRO(ipark1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the VOLT_CALC module and call the phase voltage calc. macro
+	// ------------------------------------------------------------------------------
+		volt1.DcBusVolt = (AdcResult.ADCRESULT3)*0.000244140625;	// DC Bus voltage meas.
+	    volt1.MfuncV1 = svgen1.Ta;
+	    volt1.MfuncV2 = svgen1.Tb;
+	    volt1.MfuncV3 = svgen1.Tc;
+	    VOLT_CALC_CLA_MACRO(volt1) 
+	
+	// ------------------------------------------------------------------------------
+	//    Connect inputs of the ACI module and call the flux estimation macro
+	// ------------------------------------------------------------------------------
+	 	fe1.UDsS = volt1.Valpha;
+		fe1.UQsS = volt1.Vbeta;
+	 	fe1.IDsS = clarke1.alpha;
+		fe1.IQsS = clarke1.beta;
+		ACI_FE_CLA_MACRO(fe1)
+	
+	// ------------------------------------------------------------------------------
+	//    Connect inputs of the ACI module and call the speed estimation macro
+	// ------------------------------------------------------------------------------
+	 	se1.IDsS = clarke1.alpha;
+		se1.IQsS = clarke1.beta;
+	 	se1.PsiDrS = fe1.PsiDrS;
+		se1.PsiQrS = fe1.PsiQrS;
+		se1.ThetaFlux = fe1.ThetaFlux; 
+		ACI_SE_CLA_MACRO(se1)
+	
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the SVGEN module and call the space-vector gen. macro
+	// ------------------------------------------------------------------------------
+		svgen1.Ualpha=ipark1.alpha;
+		svgen1.Ubeta=ipark1.beta;
+		SVGEN_CLA_MACRO(svgen1)
+		
+	// ------------------------------------------------------------------------------
+	//  Connect inputs of the PWM_DRV module and call the PWM signal generation macro
+	// ------------------------------------------------------------------------------
+		pwm1.MfuncC1=svgen1.Ta;
+		pwm1.MfuncC2=svgen1.Tb;
+		pwm1.MfuncC3=svgen1.Tc;
+		PWMDRV_3phInv_CLA_MACRO(pwm1)
+	
+	// ------------------------------------------------------------------------------
+	//    Call PWMDAC module 
+	// ------------------------------------------------------------------------------
+		PWMDRV_DAC_CLA_MACRO(fe1.PsiDrS,fe1.PsiQrS,fe1.ThetaFlux,volt1.Valpha ,500)
+		
+	#endif
+	}
+	
+		
+	#if (CLA_DEBUG==1)
+	__mdebugstop();
+	#endif
+	
+}
+
+interrupt void Cla1Task2 ( void )
+{
+	
+}
+interrupt void Cla1Task3 ( void )
+{
+	
+}
+interrupt void Cla1Task4 ( void )
+{
+	
+}
+interrupt void Cla1Task5 ( void )
+{
+	
+}
+interrupt void Cla1Task6 ( void )
+{
+	
+}
+interrupt void Cla1Task7 ( void )
+{
+	
+}
+interrupt void Cla1Task8 ( void )
+{
+	#if (CLA_DEBUG==1)
+	__mdebugstop();
+	#endif
+		
+// Keep your module initialization code that needs to be performed by the CLA here
+	
+	RAMP_CNTL_CLA_INIT(rc1)
+	RAMP_GEN_CLA_INIT(rg1)
+	CLARKE_CLA_INIT(clarke1)
+	PARK_CLA_INIT(park1)
+	iPARK_CLA_INIT(ipark1)
+	PI_CLA_INIT(pi_id)
+	PI_CLA_INIT(pi_iq)
+	PI_CLA_INIT(pi_spd)
+	ACI_FE_CONST_INIT_MACRO(fe1_const)
+	ACI_SE_CONST_INIT_MACRO(se1_const)
+	ACI_FE_CLA_INIT(fe1)
+	ACI_SE_CLA_INIT(se1)
+	VOLT_CALC_INIT_MACRO(volt1)
+	SVGEN_CLA_INIT_MACRO(svgen1)
+	
+// Initialize the PI module for Iq	
+	pi_id.Kp=(1.0);
+	pi_id.Ki=(T/0.004);
+	pi_id.Umax =(0.3);
+	pi_id.Umin =(-0.3);
+	
+// Initialize the PI module for speed
+	pi_iq.Kp=(1.0);
+	pi_iq.Ki=(T/0.004);
+	pi_iq.Umax =(0.8);
+	pi_iq.Umin =(-0.8);
+
+// Initialize the PI module for Id
+    pi_spd.Kp=(2.0);
+	pi_spd.Ki=(T*SpeedLoopPrescaler/0.5);
+	pi_spd.Umax =(0.95);
+	pi_spd.Umin =(-0.95);
+	
+// Initialize the phase voltage calc module
+	volt1.OutOfPhase=1;
+	
+// Initialize the aci flux constant module 	
+	fe1_const.Rs = RS;
+	fe1_const.Rr = RR;
+	fe1_const.Ls = LS;
+	fe1_const.Lr = LR;
+	fe1_const.Lm = LM;
+	fe1_const.Ib = BASE_CURRENT;
+	fe1_const.Vb = BASE_VOLTAGE;
+	fe1_const.Ts = T;
+	ACI_FE_CONST_CLA_MACRO(fe1_const)
+
+// Initialize the aci flux estimator module 		
+ 	fe1.K1 = (fe1_const.K1);
+ 	fe1.K2 = (fe1_const.K2);
+ 	fe1.K3 = (fe1_const.K3);
+ 	fe1.K4 = (fe1_const.K4);
+ 	fe1.K5 = (fe1_const.K5);
+ 	fe1.K6 = (fe1_const.K6);
+ 	fe1.K7 = (fe1_const.K7);
+ 	fe1.K8 = (fe1_const.K8);
+    fe1.Kp = (2.8); 
+    fe1.Ki = (T/0.45);
+    	     
+// Initialize the aci speed estimator constants module
+	se1_const.Rr = RR;
+	se1_const.Lr = LR;
+	se1_const.fb = BASE_FREQ;
+	se1_const.fc = 3;
+	se1_const.Ts = T;
+	ACI_SE_CONST_CLA_MACRO(se1_const)
+
+// Initialize the  aci speed estimator module 	
+ 	se1.K1 = (se1_const.K1);
+ 	se1.K2 = (se1_const.K2);
+ 	se1.K3 = (se1_const.K3);
+ 	se1.K4 = (se1_const.K4);
+ 	se1.BaseRpm = 120*BASE_FREQ/POLES;
+	
+	SpeedLoopCount=0;
+	pwm1.HalfPerMax=1500;
+	IsrTicker=0;
+	
+	Cycles=0;
+	Cycles_Avg=0;
+	Cycles_Max=0;
+	
+	__mnop();
+	__mnop();
+	__mnop();
+	
+}

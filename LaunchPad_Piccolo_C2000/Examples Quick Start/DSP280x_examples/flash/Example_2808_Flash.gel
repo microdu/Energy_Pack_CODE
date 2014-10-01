@@ -1,0 +1,45 @@
+/*
+// TI File $Revision: /main/2 $
+// Checkin $Date: September 15, 2005   10:55:30 $
+//###########################################################################
+//
+// This .gel file can be used to help load and build the example project.
+// It should be unloaded from Code Composer Studio before loading another 
+// project. 
+//
+//###########################################################################
+// $TI Release: DSP280x C/C++ Header Files V1.70 $
+// $Release Date: July 27, 2009 $
+//###########################################################################
+*/
+
+menuitem "DSP2808 Flash Example"
+
+hotmenu Load_and_Build_Project()
+{
+  GEL_ProjectLoad("Example_2808_Flash.pjt");
+  GEL_ProjectBuild("Example_2808_Flash.pjt");
+  Setup_WatchWindow();
+}
+
+hotmenu Load_Symbols()
+{
+  GEL_SymbolLoad(".\\debug\\Example_2808_Flash.out");
+  Setup_WatchWindow();
+}
+
+hotmenu Setup_WatchWindow()
+{
+   GEL_WatchReset();
+   GEL_WatchAdd("EPwm1TimerIntCount,x");
+   GEL_WatchAdd("EPwm2TimerIntCount,x");
+   GEL_WatchAdd("EPwm3TimerIntCount,x");   
+   GEL_WatchAdd("LoopCount,x");
+   GEL_WatchAdd("EPwm1Regs,x");
+   GEL_WatchAdd("EPwm2Regs,x");
+   GEL_WatchAdd("EPwm3Regs,x");
+}
+
+
+
+

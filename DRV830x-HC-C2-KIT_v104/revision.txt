@@ -1,0 +1,4 @@
+DRV830x-HC-C2-KIT
+v102 2012-January
+- Added \DRV830x-HC-C2-KIT_v102\~DRV830x-HC-EVM-HWdevPkg\DRV830x_RevC_HWDevPKG
+- Updated GUI using latest Crosshairs Interface Designer tool to fix issues with GUIs running on server based systems

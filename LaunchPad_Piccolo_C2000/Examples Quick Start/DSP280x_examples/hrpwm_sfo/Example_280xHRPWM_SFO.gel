@@ -1,0 +1,54 @@
+/*
+// TI File $Revision: /main/4 $
+// Checkin $Date: September 15, 2005   10:56:57 $
+//###########################################################################
+//
+// This .gel file can be used to help load and build the example project.
+// It should be unloaded from Code Composer Studio before loading another 
+// project. 
+//
+//###########################################################################
+// $TI Release: DSP280x C/C++ Header Files V1.70 $
+// $Release Date: July 27, 2009 $
+//###########################################################################
+
+//###########################################################################
+// Test Description: Run this GEL on F2808 or F2801.
+// The Watch window should give a Scale factor value of 67-70 for the HRPWM 
+// modules in the device. F2808/6 will have four entries. F2801 will have three
+//###########################################################################
+*/
+
+menuitem "DSP280x HRPWM SFO"
+
+hotmenu Load_and_Build_Project()
+{
+   GEL_ProjectLoad("Example_280xHRPWM_SFO.pjt");
+   GEL_ProjectBuild("Example_280xHRPWM_SFO.pjt");
+   Setup_WatchWindow();
+}
+
+hotmenu Load_Code()
+{
+   GEL_Load(".\\debug\\Example_280xHRPWM_SFO.out");
+   Setup_WatchWindow();
+}
+
+hotmenu Setup_WatchWindow()
+{
+
+   GEL_WatchReset();
+   GEL_WatchAdd("UpdateFine");
+   GEL_WatchAdd("EPwm1Regs.CMPA.all");
+   GEL_WatchAdd("EPwm2Regs.CMPA.all");
+   GEL_WatchAdd("EPwm3Regs.CMPA.all");
+   GEL_WatchAdd("EPwm4Regs.CMPA.all");
+   GEL_WatchAdd("MEP_ScaleFactor[1]");
+   GEL_WatchAdd("MEP_ScaleFactor[2]");
+   GEL_WatchAdd("MEP_ScaleFactor[3]");
+   GEL_WatchAdd("MEP_ScaleFactor[4]");
+   GEL_WatchAdd("EPwm1Regs,x");
+   GEL_WatchAdd("EPwm2Regs,x");
+   GEL_WatchAdd("EPwm3Regs,x");
+   GEL_WatchAdd("EPwm4Regs,x");
+}
